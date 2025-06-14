@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>MiniGame Portal</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  </head>
+  <body>
+    <script>
+    // Poki-style Game Portal: 10 Unique Mobile-Friendly Mini-Games (All-In-One JS File, with full-screen modal)
+    // Usage: put this <script> in a blank HTML page
+
+    (function() {
+      // ---------- CSS ----------
+      const style = document.createElement('style');
+      style.textContent = `
+        html,body{margin:0;padding:0;}
+        body{background:#f9fafb;font-family:sans-serif;}
+        .header{background:#1976d2;color:#fff;text-align:center;padding:28px 0 10px 0;box-shadow:0 2px 6px #0002;}
+        .header h1{margin:0;font-size:2.2em;letter-spacing:2px;}
+        .header p{margin-top:8px;font-size:1.08em;}
+        .games{display:flex;flex-wrap:wrap;justify-content:center;gap:22px;padding:34px 6vw;}
+        .card{background:#fff;width:210px;border-radius:12px;box-shadow:0 4px 16px #0001;overflow:hidden;cursor:pointer;transition:transform 0.16s;}
+        .card:hover{transform:translateY(-6px) scale(1.03);}
+        .thumb{width:100%;height:105px;background:#e0e0e0;object-fit:cover;display:block;}
+        .card-body{padding:14px 14px 12px;}
+        .card-title{font-size:1.08em;font-weight:700;margin:0;}
+        .card-desc{color:#666;margin:7px 0 0 0;font-size:0.97em;}
+        .footer{text-align:center;padding:15px;color:#fff;background:#222;}
+        .gamescreen{
+          position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99;
+          background:rgba(0,0,0,0.96);
+          display:flex;justify-content:center;align-items:center;
+          animation: gs-fadein 0.18s;
+        }
+        @keyframes gs-fadein{from{opacity:.5;}to{opacity:1;}}
+        .frame{
+          background:#fff;border-radius:14px;
+          width:96vw; height:96vh; max-width:1200px; max-height:98vh;
+          min-width:320px; min-height:340px;
+          overflow:auto;position:relative;
+          box-shadow:0 8px 40px #0007;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #game-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+        .closebtn{position:absolute;top:14px;right:14px;background:#1976d2;color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:1.7em;font-weight:bold;cursor:pointer;z-index:2;}
+        @media (max-width:700px){.games{padding:18px 1vw;gap:11px;}.card{width:98vw;max-width:330px;}}
+        @media (max-width:500px){
+          .frame{width:99vw;min-width:99vw;height:99vh;min-height:99vh;}
+        }
+      `;
+      document.head.appendChild(style);
+
+      // ---------- Game Data ----------
+      const games = [
+        {
+          key: "tapdot",
+          title: "Tap the Dot",
+          desc: "Tap the moving dot as many times as you can in 15 seconds!",
+          thumb: "#2ecc71",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:90vw;max-width:440px;height:60vw;max-height:420px;margin:12px auto;position:relative;touch-action:none;">
+                <div id="tapdot-score" style="position:absolute;top:10px;left:14px;font-size:18px;">Score: 0</div>
+                <div id="tapdot-timer" style="position:absolute;top:10px;right:14px;font-size:18px;">Time: 15</div>
+                <div id="tapdot-dot" style="width:58px;height:58px;background:#2ecc71;position:absolute;border-radius:50%;top:120px;left:120px;box-shadow:0 2px 8px #0003;"></div>
+              </div>
+            `;
+            let score = 0, time = 15, active = true;
+            const area = container.querySelector('div');
+            const dot = container.querySelector('#tapdot-dot');
+            const scoreEl = container.querySelector('#tapdot-score');
+            const timerEl = container.querySelector('#tapdot-timer');
+            function moveDot() {
+              if (!active) return;
+              const maxX = area.offsetWidth - 58;
+              const maxY = area.offsetHeight - 58;
+              dot.style.left = (Math.random()*maxX|0) + 'px';
+              dot.style.top = (Math.random()*maxY|0) + 'px';
+            }
+            function tapHandler() {
+              if (!active) return;
+              score++; scoreEl.textContent = "Score: "+score;
+              moveDot();
+            }
+            dot.onclick = tapHandler;
+            dot.ontouchstart = function(e){tapHandler();e.preventDefault();}
+            let interval = setInterval(()=>{
+              if (--time < 0) {
+                clearInterval(interval); active = false;
+                dot.style.display = "none";
+                setTimeout(()=>alert("Time's up! Score: "+score),100);
+              }
+              timerEl.textContent = "Time: "+Math.max(0,time);
+            },1000);
+            moveDot();
+          }
+        },
+        {
+          key: "quickmath",
+          title: "Quick Math",
+          desc: "Solve as many math problems as you can in 30 seconds!",
+          thumb: "#f1c40f",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:90vw;max-width:420px;height:55vw;max-height:360px;margin:14px auto;text-align:center;position:relative;">
+                <div id="qm-score" style="font-size:18px;position:absolute;left:14px;top:12px;">Score: 0</div>
+                <div id="qm-timer" style="font-size:18px;position:absolute;right:14px;top:12px;">Time: 30</div>
+                <div id="qm-q" style="margin-top:70px;font-size:2.0em;font-weight:bold;"></div>
+                <input id="qm-answer" style="margin-top:18px;font-size:1.3em;width:70px;text-align:center;border-radius:4px;border:1px solid #aaa;padding:5px;" inputmode="numeric" autocomplete="off"/>
+                <div><button id="qm-btn" style="margin-top:22px;padding:8px 30px;font-size:1.1em;background:#1976d2;color:#fff;border:none;border-radius:7px;">Submit</button></div>
+              </div>
+            `;
+            let score = 0, time = 30, a=0, b=0, op = "+", answer = 0;
+            const qEl = container.querySelector('#qm-q');
+            const ansEl = container.querySelector('#qm-answer');
+            const btn = container.querySelector('#qm-btn');
+            const scoreEl = container.querySelector('#qm-score');
+            const timerEl = container.querySelector('#qm-timer');
+            function newQ() {
+              let ops = ["+","-","×"];
+              op = ops[Math.random()*ops.length|0];
+              a = Math.floor(Math.random()*12+1); b = Math.floor(Math.random()*12+1);
+              if (op==="-") { if (b>a) [a,b]=[b,a]; }
+              if (op==="×") answer = a*b;
+              else if (op==="+") answer = a+b;
+              else answer = a-b;
+              qEl.textContent = `${a} ${op} ${b} = ?`;
+              ansEl.value = "";
+              setTimeout(()=>ansEl.focus(),80);
+            }
+            function check() {
+              if (!ansEl.value) return;
+              let user = parseInt(ansEl.value);
+              if (user === answer) { score++; }
+              scoreEl.textContent = "Score: "+score;
+              newQ();
+            }
+            btn.onclick = check;
+            ansEl.onkeydown = e => { if (e.key==="Enter") check(); };
+            let interval = setInterval(()=>{
+              if (--time < 0) {
+                clearInterval(interval);
+                ansEl.disabled = true; btn.disabled = true;
+                setTimeout(()=>alert("Time's up! Score: "+score),150);
+              }
+              timerEl.textContent = "Time: "+Math.max(0,time);
+            },1000);
+            newQ();
+          }
+        },
+        {
+          key: "colormemory",
+          title: "Color Memory",
+          desc: "Remember & repeat the color sequence. How far can you go?",
+          thumb: "#9b59b6",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:93vw;max-width:430px;height:60vw;max-height:350px;margin:22px auto;text-align:center;">
+                <div id="cm-hint" style="font-size:1.15em;margin-bottom:10px;">Watch the sequence!</div>
+                <div style="display:flex;justify-content:center;gap:15px;margin:22px 0;">
+                  <div class="cm-btn" data-i="0" style="width:60px;height:60px;border-radius:50%;background:#e74c3c;"></div>
+                  <div class="cm-btn" data-i="1" style="width:60px;height:60px;border-radius:50%;background:#2ecc71;"></div>
+                  <div class="cm-btn" data-i="2" style="width:60px;height:60px;border-radius:50%;background:#3498db;"></div>
+                  <div class="cm-btn" data-i="3" style="width:60px;height:60px;border-radius:50%;background:#f1c40f;"></div>
+                </div>
+                <div id="cm-score" style="font-size:1.12em;margin-top:28px;">Level: 1</div>
+                <button id="cm-restart" style="margin-top:22px;padding:8px 30px;font-size:1.0em;background:#1976d2;color:#fff;border:none;border-radius:7px;display:none;">Restart</button>
+              </div>
+            `;
+            let seq = [], step = 0, userStep=0, playing=false, level = 1;
+            const btns = Array.from(container.querySelectorAll('.cm-btn'));
+            const hint = container.querySelector('#cm-hint');
+            const scoreEl = container.querySelector('#cm-score');
+            const restartBtn = container.querySelector('#cm-restart');
+            function playSeq(idx=0) {
+              playing=true; hint.textContent="Watch the sequence!";
+              btns.forEach(b=>b.style.opacity="0.7");
+              if (idx>=seq.length) {
+                setTimeout(()=>{ playing=false; hint.textContent="Your turn!"; btns.forEach(b=>b.style.opacity="1"); }, 400);
+                return;
+              }
+              let b = btns[seq[idx]];
+              b.style.opacity="1";
+              setTimeout(()=>{b.style.opacity="0.7"; playSeq(idx+1);},450);
+            }
+            function userTap(i) {
+              if (playing) return;
+              if (seq[userStep]===i) {
+                userStep++;
+                if (userStep===seq.length) {
+                  level++; scoreEl.textContent="Level: "+level;
+                  seq.push(Math.random()*4|0); userStep=0;
+                  setTimeout(()=>playSeq(0),500);
+                }
+              } else {
+                hint.textContent="Wrong! Game over at level "+level;
+                restartBtn.style.display="inline-block";
+              }
+            }
+            btns.forEach((b,i)=>{
+              b.onclick = ()=>userTap(i);
+              b.ontouchstart = e=>{userTap(i);e.preventDefault();}
+            });
+            restartBtn.onclick = ()=>init();
+            function init() {
+              seq = [Math.random()*4|0]; step = 0; userStep=0; playing=false; level=1;
+              scoreEl.textContent="Level: 1"; restartBtn.style.display="none";
+              playSeq(0);
+            }
+            init();
+          }
+        },
+        {
+          key: "reactionrace",
+          title: "Reaction Race",
+          desc: "Tap as soon as you see green. How fast are your reflexes?",
+          thumb: "#e67e22",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:90vw;max-width:340px;height:40vw;max-height:280px;margin:40px auto;text-align:center;">
+                <div id="rr-area" style="width:100%;height:180px;background:#ccc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2em;font-weight:bold;user-select:none;">Wait for green...</div>
+                <div id="rr-msg" style="margin-top:20px;font-size:1.2em;"></div>
+                <button id="rr-restart" style="margin-top:20px;display:none;padding:7px 28px;font-size:1.0em;background:#1976d2;color:#fff;border:none;border-radius:7px;">Restart</button>
+              </div>
+            `;
+            const area = container.querySelector('#rr-area');
+            const msg = container.querySelector('#rr-msg');
+            const restart = container.querySelector('#rr-restart');
+            let waiting = true, start = 0, timeout;
+            function reset() {
+              area.style.background = "#ccc";
+              area.textContent = "Wait for green...";
+              msg.textContent = "";
+              restart.style.display = "none";
+              waiting = true;
+              timeout = setTimeout(()=>{
+                area.style.background = "#43a047";
+                area.textContent = "TAP!";
+                waiting = false;
+                start = Date.now();
+              }, Math.random()*2000+1200);
+            }
+            area.onclick = tap;
+            area.ontouchstart = function(e){tap();e.preventDefault();}
+            function tap() {
+              if (waiting) {
+                clearTimeout(timeout);
+                area.style.background = "#ef5350";
+                area.textContent = "Too soon!";
+                msg.textContent = "Try again!";
+                restart.style.display = "inline-block";
+              } else {
+                let time = Date.now() - start;
+                area.style.background = "#1976d2";
+                area.textContent = "Your time: "+time+" ms";
+                msg.textContent = time<250?"💨 Lightning!":"";
+                restart.style.display = "inline-block";
+              }
+              waiting = true;
+            }
+            restart.onclick = reset;
+            reset();
+          }
+        },
+        {
+          key: "avoidblocks",
+          title: "Avoid the Blocks",
+          desc: "Drag to dodge red blocks falling from above. Survive as long as you can!",
+          thumb: "#e74c3c",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:90vw;max-width:370px;height:70vw;max-height:410px;margin:12px auto;position:relative;">
+                <canvas id="ab-canvas" width="320" height="410" style="background:#222;border-radius:11px;touch-action:none;max-width:100%;"></canvas>
+                <div id="ab-score" style="position:absolute;top:10px;left:16px;color:#fff;font-size:17px;">0</div>
+              </div>
+            `;
+            const canvas = container.querySelector('#ab-canvas');
+            const ctx = canvas.getContext('2d');
+            let player = {x:145,y:370,w:30,h:20}, blocks = [], score = 0, alive = true, t = 0;
+            function reset() {
+              player.x=145; player.y=370; blocks=[]; score=0; alive=true; t=0;
+            }
+            function draw() {
+              ctx.clearRect(0,0,320,410);
+              ctx.fillStyle="#2ecc71";
+              ctx.fillRect(player.x,player.y,player.w,player.h);
+              ctx.fillStyle="#e74c3c";
+              blocks.forEach(b=>ctx.fillRect(b.x,b.y,b.w,b.h));
+            }
+            function update() {
+              if (!alive) return;
+              t++;
+              if (t%20===0) {
+                let bw = Math.random()*60+30|0;
+                blocks.push({x:Math.random()*(320-bw),y:-32,w:bw,h:18,s:Math.random()*2+2});
+              }
+              blocks.forEach(b=>b.y+=b.s);
+              blocks = blocks.filter(b=>b.y<430);
+              blocks.forEach(b=>{
+                if (b.x < player.x+player.w && b.x+b.w > player.x && b.y < player.y+player.h && b.y+b.h > player.y) alive=false;
+              });
+              if (alive) score+=1;
+            }
+            function loop() {
+              update();
+              draw();
+              container.querySelector('#ab-score').textContent = alive?score:"Game Over! "+score;
+              if (!alive) setTimeout(()=>alert("Game Over! Score: "+score),200);
+              else requestAnimationFrame(loop);
+            }
+            function move(x) {
+              player.x = Math.min(290, Math.max(0, x-15));
+            }
+            let dragging = false;
+            canvas.onmousedown = e=>{dragging=true;move(e.offsetX);}
+            canvas.onmousemove = e=>{if(dragging)move(e.offsetX);}
+            canvas.onmouseup = ()=>{dragging=false;}
+            canvas.ontouchstart = e=>{dragging=true;move(e.touches[0].clientX-canvas.getBoundingClientRect().left);}
+            canvas.ontouchmove = e=>{if(dragging)move(e.touches[0].clientX-canvas.getBoundingClientRect().left);}
+            canvas.ontouchend = ()=>{dragging=false;}
+            reset(); loop();
+          }
+        },
+        {
+          key: "swipemaze",
+          title: "Swipe Maze",
+          desc: "Swipe to guide the blue ball to the goal. Avoid walls!",
+          thumb: "#3498db",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:92vw;max-width:340px;height:66vw;max-height:340px;margin:20px auto;position:relative;">
+                <canvas id="sm-canvas" width="320" height="340" style="background:#f7faff;border-radius:12px;touch-action:none;max-width:100%;"></canvas>
+                <div id="sm-msg" style="color:#1976d2;position:absolute;top:10px;left:20px;font-size:17px;"></div>
+              </div>
+            `;
+            const canvas = container.querySelector('#sm-canvas');
+            const ctx = canvas.getContext('2d');
+            const maze = [
+              [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+              [1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,1],
+              [1,0,1,0,1,0,1,1,1,1,0,1,1,1,0,1],
+              [1,0,1,0,0,0,0,0,0,1,0,0,0,1,0,1],
+              [1,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1],
+              [1,0,0,0,0,0,0,1,0,0,0,1,0,1,0,1],
+              [1,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1],
+              [1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1],
+              [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1],
+              [1,0,1,0,0,0,0,0,0,1,0,0,0,0,2,1],
+              [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ];
+            let cell = 20, px=1,py=1, won=false;
+            function draw() {
+              ctx.clearRect(0,0,320,340);
+              for(let y=0;y<maze.length;y++) {
+                for(let x=0;x<maze[0].length;x++) {
+                  if (maze[y][x]===1) {
+                    ctx.fillStyle="#333";
+                    ctx.fillRect(x*cell,y*cell,cell,cell);
+                  }
+                  if (maze[y][x]===2) {
+                    ctx.fillStyle="#43a047";
+                    ctx.fillRect(x*cell,y*cell,cell,cell);
+                  }
+                }
+              }
+              ctx.beginPath();
+              ctx.arc(px*cell+cell/2,py*cell+cell/2,cell/2-2,0,2*Math.PI);
+              ctx.fillStyle="#3498db";
+              ctx.fill();
+            }
+            function move(dx,dy) {
+              if (won) return;
+              let nx=px+dx,ny=py+dy;
+              if (maze[ny][nx]===1) return;
+              px=nx;py=ny;
+              if (maze[ny][nx]===2) {
+                container.querySelector('#sm-msg').textContent = "You Win!";
+                won=true; setTimeout(()=>alert("Congratulations!"),450);
+              }
+              draw();
+            }
+            // Swipe detection
+            let sx,sy;
+            canvas.ontouchstart = e=>{
+              sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+            }
+            canvas.ontouchend = e=>{
+              let dx = e.changedTouches[0].clientX-sx;
+              let dy = e.changedTouches[0].clientY-sy;
+              if (Math.abs(dx)>Math.abs(dy)) { if(dx>15)move(1,0);else if(dx<-15)move(-1,0);}
+              else { if(dy>15)move(0,1);else if(dy<-15)move(0,-1);}
+            }
+            document.addEventListener('keydown', e=>{
+              if (e.key==="ArrowUp") move(0,-1);
+              else if (e.key==="ArrowDown") move(0,1);
+              else if (e.key==="ArrowLeft") move(-1,0);
+              else if (e.key==="ArrowRight") move(1,0);
+            });
+            draw();
+          }
+        },
+        {
+          key: "shapecatch",
+          title: "Shape Catch",
+          desc: "Catch only circles! Tap/click them before they disappear.",
+          thumb: "#e84393",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:90vw;max-width:360px;height:68vw;max-height:370px;margin:14px auto;position:relative;">
+                <canvas id="sc-canvas" width="320" height="370" style="background:#fff;border-radius:11px;touch-action:none;max-width:100%;"></canvas>
+                <div id="sc-score" style="position:absolute;top:10px;left:16px;color:#1976d2;font-size:17px;">0</div>
+              </div>
+            `;
+            const canvas = container.querySelector('#sc-canvas');
+            const ctx = canvas.getContext('2d');
+            let items = [], score = 0, t = 0, playing = true;
+            function addItem() {
+              let isCircle = Math.random()>0.4;
+              let x = Math.random()*270+20, y = Math.random()*230+50;
+              items.push({x,y,shape:isCircle?"circle":"square",ttl:56});
+            }
+            function draw() {
+              ctx.clearRect(0,0,320,370);
+              items.forEach(it=>{
+                ctx.save();
+                ctx.globalAlpha = it.ttl/56;
+                if (it.shape==="circle") {
+                  ctx.beginPath();
+                  ctx.arc(it.x,it.y,22,0,2*Math.PI);
+                  ctx.fillStyle="#e84393";
+                  ctx.fill();
+                } else {
+                  ctx.fillStyle="#636e72";
+                  ctx.fillRect(it.x-22,it.y-22,44,44);
+                }
+                ctx.restore();
+              });
+            }
+            function update() {
+              t++;
+              if (t%30===0) addItem();
+              items.forEach(it=>it.ttl--);
+              items = items.filter(it=>it.ttl>0);
+            }
+            function tap(e) {
+              if (!playing) return;
+              let rect = canvas.getBoundingClientRect();
+              let x = (e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+              let y = (e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+              let hit = false;
+              for(let i=0;i<items.length;i++){
+                let it=items[i];
+                if (it.shape==="circle" && Math.abs(x-it.x)<24 && Math.abs(y-it.y)<24) {
+                  score++; items.splice(i,1); hit=true; break;
+                }
+                if (it.shape==="square" && x>it.x-22 && x<it.x+22 && y>it.y-22 && y<it.y+22) {
+                  playing=false;
+                  setTimeout(()=>alert("Wrong! Final Score: "+score),100);
+                  break;
+                }
+              }
+              container.querySelector('#sc-score').textContent=score;
+            }
+            canvas.onclick = tap;
+            canvas.ontouchstart = tap;
+            function loop() {
+              if (!playing) return;
+              update();
+              draw();
+              requestAnimationFrame(loop);
+            }
+            loop();
+          }
+        },
+        {
+          key: "flipcards",
+          title: "Flip Cards",
+          desc: "Find all matching pairs with the least moves. Memory challenge!",
+          thumb: "#00b894",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:93vw;max-width:330px;height:60vw;max-height:340px;margin:16px auto;text-align:center;">
+                <div id="fc-moves" style="font-size:1.11em;margin-bottom:7px;">Moves: 0</div>
+                <div id="fc-board" style="display:flex;flex-wrap:wrap;justify-content:center;gap:7px;"></div>
+                <button id="fc-restart" style="margin-top:18px;padding:7px 26px;font-size:1.0em;background:#1976d2;color:#fff;border:none;border-radius:7px;">Restart</button>
+              </div>
+            `;
+            const emojis = ["🍕","🍔","🍎","🎲","🎹","🦊","🍩","🎈"];
+            let cards = [...emojis,...emojis], moves=0, board, flipped=[], solved=0;
+            board = container.querySelector('#fc-board');
+            function shuffle() {
+              for(let i=cards.length-1;i>0;i--) {
+                let j = Math.random()*(i+1)|0;
+                [cards[i],cards[j]] = [cards[j],cards[i]];
+              }
+            }
+            function render() {
+              board.innerHTML = "";
+              cards.forEach((em,i)=>{
+                let d=document.createElement('div');
+                d.className="fc-card";
+                d.style="width:48px;height:48px;background:#eee;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:2em;user-select:none;cursor:pointer;box-shadow:0 1px 6px #0001;";
+                d.textContent = flipped.includes(i)||solved&(1<<i)?em:"";
+                d.onclick = ()=>flip(i,d);
+                d.ontouchstart = e=>{flip(i,d);e.preventDefault();}
+                board.appendChild(d);
+              });
+            }
+            function flip(i,d) {
+              if (flipped.length>=2 || flipped.includes(i) || solved&(1<<i)) return;
+              flipped.push(i);
+              render();
+              if (flipped.length===2) {
+                moves++;
+                container.querySelector('#fc-moves').textContent="Moves: "+moves;
+                if (cards[flipped[0]]===cards[flipped[1]]) {
+                  solved|=(1<<flipped[0])|(1<<flipped[1]);
+                  flipped=[];
+                  render();
+                  if (solved==(1<<cards.length)-1) setTimeout(()=>alert("You win in "+moves+" moves!"),200);
+                } else {
+                  setTimeout(()=>{flipped=[];render();},800);
+                }
+              }
+            }
+            function start() {
+              solved=0;flipped=[];moves=0;container.querySelector('#fc-moves').textContent="Moves: 0";
+              shuffle();render();
+            }
+            container.querySelector('#fc-restart').onclick = start;
+            start();
+          }
+        },
+        {
+          key: "tapjump",
+          title: "Tap to Jump",
+          desc: "Tap to keep the ball in the air and avoid obstacles.",
+          thumb: "#fdcb6e",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:95vw;max-width:330px;height:65vw;max-height:350px;margin:14px auto;position:relative;">
+                <canvas id="tj-canvas" width="330" height="350" style="background:#f5f6fa;border-radius:10px;touch-action:none;max-width:100%;"></canvas>
+                <div id="tj-score" style="position:absolute;top:10px;left:16px;color:#636e72;font-size:17px;">0</div>
+              </div>
+            `;
+            const canvas = container.querySelector('#tj-canvas');
+            const ctx = canvas.getContext('2d');
+            let ball = {x:60,y:220,vy:0,r:16}, pipes = [], score=0, playing=true, t=0;
+            function jump() { if (playing) ball.vy=-5.3; }
+            canvas.onclick = jump;
+            canvas.ontouchstart = function(e){jump();e.preventDefault();}
+            function addPipe() {
+              let h = Math.random()*110+60;
+              pipes.push({x:330,w:34,top:h,bot:350-h-110});
+            }
+            function draw() {
+              ctx.clearRect(0,0,330,350);
+              ctx.fillStyle="#fdcb6e";
+              ctx.beginPath();
+              ctx.arc(ball.x,ball.y,ball.r,0,2*Math.PI);
+              ctx.fill();
+              ctx.fillStyle="#00b894";
+              pipes.forEach(p=>{
+                ctx.fillRect(p.x,0,p.w,p.top);
+                ctx.fillRect(p.x,350-p.bot,p.w,p.bot);
+              });
+            }
+            function update() {
+              t++;
+              if (t%66===0) addPipe();
+              pipes.forEach(p=>p.x-=2.3);
+              pipes = pipes.filter(p=>p.x>-40);
+              ball.vy+=0.37;ball.y+=ball.vy;
+              pipes.forEach(p=>{
+                if (ball.x+ball.r>p.x&&ball.x-ball.r<p.x+p.w&&(ball.y-ball.r<p.top||ball.y+ball.r>350-p.bot)) playing=false;
+                if (p.x+1<ball.x&&p.x+1+p.w>=ball.x) score++;
+              });
+              if (ball.y>350-ball.r||ball.y<ball.r) playing=false;
+            }
+            function loop() {
+              if (!playing) { setTimeout(()=>alert("Game over! Score: "+score),250); return; }
+              update(); draw();
+              container.querySelector('#tj-score').textContent=score;
+              requestAnimationFrame(loop);
+            }
+            loop();
+          }
+        },
+        {
+          key: "sprintrun",
+          title: "Sprint Runner",
+          desc: "Tap fast to run! Beat the finish line before time runs out.",
+          thumb: "#636e72",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:98vw;max-width:320px;height:45vw;max-height:180px;margin:40px auto;text-align:center;position:relative;">
+                <canvas id="sr-canvas" width="320" height="70" style="background:#dfe6e9;border-radius:14px;margin-top:30px;max-width:100%;"></canvas>
+                <div id="sr-msg" style="margin-top:18px;font-size:1.12em;"></div>
+                <button id="sr-restart" style="margin-top:10px;display:none;padding:7px 20px;font-size:1.0em;background:#1976d2;color:#fff;border:none;border-radius:7px;">Restart</button>
+              </div>
+            `;
+            const canvas = container.querySelector('#sr-canvas');
+            const ctx = canvas.getContext('2d');
+            let pos = 10, speed = 0, t=0, running=true, finished=false;
+            const msg = container.querySelector('#sr-msg');
+            const restart = container.querySelector('#sr-restart');
+            function tap() {
+              if (!running) return;
+              speed+=2.6; if (speed>9.5) speed=9.5;
+            }
+            canvas.onclick = tap;
+            canvas.ontouchstart = function(e){tap();e.preventDefault();}
+            function draw() {
+              ctx.clearRect(0,0,320,70);
+              ctx.fillStyle="#636e72";
+              ctx.fillRect(305,0,8,70);
+              ctx.fillStyle="#fdcb6e";
+              ctx.fillRect(pos,24,28,28);
+            }
+            function loop() {
+              if (!running) return;
+              t++;
+              pos+=speed;
+              speed*=0.89; if (speed<0.3) speed=0.3;
+              if (pos>=305) {
+                running=false; finished=true; msg.textContent="🏅 You finished in "+(t/60).toFixed(2)+"s!";
+                restart.style.display="inline-block";
+              }
+              else if (t>=400) {
+                running=false; finished=false; msg.textContent="⏰ Out of time!";
+                restart.style.display="inline-block";
+              }
+              draw();
+              if (running) requestAnimationFrame(loop);
+            }
+            restart.onclick = ()=>{pos=10;speed=0;t=0;running=true;finished=false;msg.textContent="";restart.style.display="none";loop();}
+            loop();
+          }
+        },
+        {
+          key: "taptile",
+          title: "Tap Tile",
+          desc: "Tiles light up randomly. Tap them before they fade for points!",
+          thumb: "#6c5ce7",
+          init: function(container) {
+            container.innerHTML = `
+              <div style="width:94vw;max-width:320px;height:60vw;max-height:330px;margin:15px auto;text-align:center;position:relative;">
+                <div id="tt-score" style="font-size:1.17em;position:absolute;left:14px;top:12px;">Score: 0</div>
+                <div id="tt-timer" style="font-size:1.17em;position:absolute;right:14px;top:12px;">15</div>
+                <div id="tt-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:90%;margin:60px auto 0 auto;user-select:none;"></div>
+              </div>
+            `;
+            let score=0,time=15,tiles=[];
+            const grid=container.querySelector('#tt-grid');
+            const scoreEl=container.querySelector('#tt-score');
+            const timerEl=container.querySelector('#tt-timer');
+            function newTiles() {
+              tiles = [];
+              for(let i=0;i<9;i++)tiles.push({lit:false,t:0});
+            }
+            function lightTile() {
+              let idx = Math.floor(Math.random()*9);
+              tiles[idx].lit=true;tiles[idx].t=20;
+              render();
+            }
+            function tap(i) {
+              if (tiles[i].lit) { score++; tiles[i].lit=false; render(); }
+            }
+            function render() {
+              grid.innerHTML="";
+              tiles.forEach((tile,i)=>{
+                let d=document.createElement('div');
+                d.style="height:60px;background:"+(tile.lit?"#6c5ce7":"#dfe6e9")+";border-radius:10px;box-shadow:0 1px 8px #0001;cursor:pointer;transition:background 0.15s;font-size:2em;display:flex;align-items:center;justify-content:center;";
+                d.onclick=()=>tap(i);
+                d.ontouchstart=e=>{tap(i);e.preventDefault();}
+                grid.appendChild(d);
+              });
+              scoreEl.textContent="Score: "+score;
+            }
+            function tick() {
+              tiles.forEach((t,i)=>{
+                if(t.lit){t.t--;if(t.t<=0)t.lit=false;}
+              });
+              if(Math.random()<0.26)lightTile();
+              render();
+            }
+            function start() {
+              score=0;time=15;newTiles();render();
+              let interval=setInterval(()=>{
+                if (--time<0) {
+                  clearInterval(interval);
+                  setTimeout(()=>alert("Time's up! Score: "+score),180);
+                }
+                timerEl.textContent=time;
+                tick();
+              },700);
+            }
+            start();
+          }
+        }
+      ];
+
+      // ---------- Portal HTML ----------
+      document.body.innerHTML = `
+        <div class="header"><h1>MiniGame Portal</h1><p>10 fun, original, mobile-friendly mini-games. Tap a card to play!</p></div>
+        <div class="games"></div>
+        <div class="footer">&copy; 2025 MiniGame Portal &mdash; All games coded in one file!</div>
+      `;
+
+      // ---------- Render Cards ----------
+      const gamesDiv = document.querySelector('.games');
+      games.forEach(g => {
+        const card = document.createElement('div');
+        card.className = "card";
+        card.innerHTML = `
+          <div class="thumb" style="background:${g.thumb};"></div>
+          <div class="card-body">
+            <div class="card-title">${g.title}</div>
+            <div class="card-desc">${g.desc}</div>
+          </div>
+        `;
+        card.onclick = ()=>openGame(g);
+        card.ontouchstart = ()=>openGame(g);
+        gamesDiv.appendChild(card);
+      });
+
+      // ---------- Modal Game Frame ----------
+      function openGame(game) {
+        if (document.querySelector('.gamescreen')) return;
+        const modal = document.createElement('div');
+        modal.className = 'gamescreen';
+        modal.innerHTML = `
+          <div class="frame">
+            <button class="closebtn">&times;</button>
+            <div id="game-container"></div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('.closebtn').onclick = ()=>modal.remove();
+        modal.querySelector('.closebtn').ontouchstart = ()=>modal.remove();
+        game.init(modal.querySelector('#game-container'));
+      }
+    })();
+    </script>
+  </body>
+</html>
